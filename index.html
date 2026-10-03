@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>הקלטה מתוך הספר</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #EEF1F4;
+    --ink: #1D2733;
+    --muted: #5B6875;
+    --accent: #2C5A86;
+    --ring: #C9D3DD;
+    --sheet: #FFFFFF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #151B22;
+      --ink: #E6EBF0;
+      --muted: #9AA7B4;
+      --accent: #7FB0DE;
+      --ring: #2E3A47;
+      --sheet: #1C242D;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font-family: "Assistant", "Segoe UI", Arial, sans-serif;
+    display: grid;
+    place-items: center;
+    padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  }
+  main {
+    width: 100%;
+    max-width: 420px;
+    background: var(--sheet);
+    border-radius: 4px 18px 18px 4px; /* כמו דף פתוח מצד הכריכה */
+    padding: 44px 32px 32px;
+    text-align: center;
+  }
+  h1 {
+    font-family: "Frank Ruhl Libre", "David", serif;
+    font-weight: 700;
+    font-size: 1.9rem;
+    line-height: 1.25;
+    margin: 0 0 8px;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin: 0 0 36px;
+  }
+
+  /* כפתור ההשמעה — האלמנט המרכזי בדף */
+  .player { position: relative; width: 168px; height: 168px; margin: 0 auto 14px; }
+  .player svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .track { stroke: var(--ring); }
+  .progress { stroke: var(--accent); transition: stroke-dashoffset .25s linear; }
+  #play {
+    position: absolute; inset: 14px;
+    border: none; border-radius: 50%;
+    background: var(--accent); color: var(--sheet);
+    cursor: pointer;
+    display: grid; place-items: center;
+    transition: transform .15s ease;
+  }
+  #play:active { transform: scale(.96); }
+  #play:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
+  #play svg { position: static; transform: none; width: 54px; height: 54px; }
+
+  .time {
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    font-size: .95rem;
+    margin-bottom: 32px;
+    direction: ltr;
+  }
+  .download {
+    display: inline-block;
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+    padding: 10px 18px;
+    border: 1.5px solid var(--ring);
+    border-radius: 999px;
+  }
+  .download:hover { border-color: var(--accent); }
+  .download:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) {
+    .progress, #play { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <!-- לשנות לכותרת ולמשפט שמתאימים לספר -->
+  <h1>הקלטה מתוך הספר</h1>
+  <p class="sub">לחצו כדי להאזין</p>
+
+  <div class="player">
+    <svg viewBox="0 0 168 168" aria-hidden="true">
+      <circle class="track" cx="84" cy="84" r="80" fill="none" stroke-width="5"/>
+      <circle class="progress" id="ring" cx="84" cy="84" r="80" fill="none" stroke-width="5" stroke-linecap="round"/>
+    </svg>
+    <button id="play" aria-label="השמעה">
+      <svg id="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>
+    </button>
+  </div>
+  <div class="time" id="time">0:00 / 0:00</div>
+
+  <a class="download" id="dl" href="recording.mp3" download="הקלטה.mp3">הורדת ההקלטה</a>
+
+  <audio id="audio" src="recording.mp3" preload="metadata"></audio>
+</main>
+
+<script>
+  const audio = document.getElementById('audio');
+  const btn = document.getElementById('play');
+  const icon = document.getElementById('icon');
+  const ring = document.getElementById('ring');
+  const time = document.getElementById('time');
+  const C = 2 * Math.PI * 80;
+  ring.style.strokeDasharray = C;
+  ring.style.strokeDashoffset = C;
+
+  const PLAY = '<path d="M8 5.5v13l11-6.5z"/>';
+  const PAUSE = '<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>';
+  const fmt = s => isFinite(s) ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '0:00';
+
+  // ספירת אירועים בסטטיסטיקה (עובד רק אחרי חיבור GoatCounter למטה)
+  function track(name) {
+    if (window.goatcounter && window.goatcounter.count) {
+      window.goatcounter.count({ path: name, title: name, event: true });
+    }
+  }
+
+  let playedOnce = false;
+  btn.addEventListener('click', () => {
+    if (audio.paused) {
+      audio.play();
+      if (!playedOnce) { track('play'); playedOnce = true; }
+    } else {
+      audio.pause();
+    }
+  });
+  audio.addEventListener('play', () => { icon.innerHTML = PAUSE; btn.setAttribute('aria-label', 'השהיה'); });
+  audio.addEventListener('pause', () => { icon.innerHTML = PLAY; btn.setAttribute('aria-label', 'השמעה'); });
+  audio.addEventListener('ended', () => { track('listened-to-end'); ring.style.strokeDashoffset = C; });
+  audio.addEventListener('loadedmetadata', () => { time.textContent = '0:00 / ' + fmt(audio.duration); });
+  audio.addEventListener('timeupdate', () => {
+    const p = audio.duration ? audio.currentTime / audio.duration : 0;
+    ring.style.strokeDashoffset = C * (1 - p);
+    time.textContent = fmt(audio.currentTime) + ' / ' + fmt(audio.duration);
+  });
+  document.getElementById('dl').addEventListener('click', () => track('download'));
+</script>
+
+<!--
+  סטטיסטיקה: פותחים חשבון חינמי ב-goatcounter.com, בוחרים שם (למשל idanbook),
+  ומחליפים את YOURNAME בשורה למטה. בלי השינוי הזה הדף עובד רגיל, פשוט בלי ספירה.
+-->
+<script data-goatcounter="https://YOURNAME.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
