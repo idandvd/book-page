@@ -194,7 +194,10 @@
   audio.addEventListener('play', () => { icon.innerHTML = PAUSE; btn.setAttribute('aria-label', 'השהיה'); });
   audio.addEventListener('pause', () => { icon.innerHTML = PLAY; btn.setAttribute('aria-label', 'השמעה'); });
   audio.addEventListener('ended', () => { track('ended'); ring.style.strokeDashoffset = C; });
-  audio.addEventListener('loadedmetadata', () => { time.textContent = '0:00 / ' + fmt(audio.duration); });
+  const showDuration = () => { time.textContent = fmt(audio.currentTime) + ' / ' + fmt(audio.duration); };
+  audio.addEventListener('loadedmetadata', showDuration);
+  audio.addEventListener('durationchange', showDuration);
+  if (audio.readyState >= 1) showDuration(); // המטא-דאטה כבר נטענה לפני שהסקריפט רץ
   audio.addEventListener('timeupdate', () => {
     const p = audio.duration ? audio.currentTime / audio.duration : 0;
     ring.style.strokeDashoffset = C * (1 - p);
