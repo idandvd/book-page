@@ -4,13 +4,28 @@
 <meta charset="UTF-8">
 <!--
   לשנה הבאה: לשנות את שם הקובץ הזה ל-index.html (במקום הקיים),
-  ולהחליף את https://example.com בכתובת היעד בשני המקומות.
+  להחליף את https://example.com בכתובת היעד בשלושת המקומות,
+  ולהעתיק את LOG_URL מה-index.html הישן כדי שהסריקות ימשיכו להירשם בגיליון.
 -->
-<meta http-equiv="refresh" content="0; url=https://example.com">
+<meta http-equiv="refresh" content="2; url=https://example.com">
 <title>מעביר...</title>
-<script data-goatcounter="https://YOURNAME.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body style="font-family:Arial,sans-serif;text-align:center;padding:40px">
 <p>מעביר אותך... <a href="https://example.com">לחצו כאן אם זה לא קורה</a></p>
+<script>
+  const TARGET = 'https://example.com';
+  const LOG_URL = '';
+  const go = () => location.replace(TARGET);
+  if (LOG_URL) {
+    fetch(LOG_URL, {
+      method: 'POST', mode: 'no-cors', keepalive: true,
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ event: 'redirect', lang: navigator.language, ref: document.referrer })
+    }).catch(() => {}).finally(go);
+    setTimeout(go, 1200);
+  } else {
+    go();
+  }
+</script>
 </body>
 </html>
